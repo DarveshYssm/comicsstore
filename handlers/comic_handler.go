@@ -10,9 +10,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func ComicHandler(w http.ResponseWriter, r *http.Request) {
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Comics endpoint is working"))
+}
+
+
 func GetAllComics(c *gin.Context) {
 	page := c.DefaultQuery("page", "1")
 	limit := c.DefaultQuery("limit", "10")
+	authorID := c.DefaultQuery("author_id", "")
+	categoryID := c.DefaultQuery("category_id", "")
 
 	pageInt, _ := strconv.Atoi(page)
 	limitInt, _ := strconv.Atoi(limit)
@@ -21,18 +30,25 @@ func GetAllComics(c *gin.Context) {
 	var comics []models.Comic
 	var total int64
 
-	config.DB.Model(&models.Comic{}).Count(&total)
-	result := config.DB.Model(&models.Comic{}).
-		Select("id, title, description, price, author_id, category_id").
+	query := config.DB.Model(&models.Comic{})
+
+	if authorID != "" {
+		query = query.Where("author_id = ?", authorID)
+	}
+
+	if categoryID != "" {
+		query = query.Where("category_id = ?", categoryID)
+	}
+	query.Count(&total)
+
+	result := query.Select("id, title, description, price, author_id, category_id").
 		Limit(limitInt).
 		Offset(offset).
 		Find(&comics)
-
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch comics"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"data":       comics,
 		"total":      total,
@@ -49,6 +65,7 @@ func CreateComic(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+
 	if newComic.Title == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Comic title is required"})
 		return
@@ -65,6 +82,7 @@ func CreateComic(c *gin.Context) {
 	}
 
 	config.DB.Preload("Author").Preload("Category").First(&newComic, newComic.ID)
+
 	c.JSON(http.StatusCreated, newComic)
 }
 
@@ -89,6 +107,7 @@ func UpdateComic(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Comic not found"})
 		return
 	}
+
 	if err := c.ShouldBindJSON(&comic); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
@@ -106,17 +125,19 @@ func UpdateComic(c *gin.Context) {
 	}
 
 	config.DB.Preload("Author").Preload("Category").First(&comic, id)
+
+
 	c.JSON(http.StatusOK, comic)
 }
 
 func DeleteComic(c *gin.Context) {
 	id := c.Param("id")
+
 	result := config.DB.Delete(&models.Comic{}, id)
 
 	if result.RowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Comic not found"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"message": "Comic deleted successfully"})
 }

@@ -1,17 +1,12 @@
 package models
 
-import (
-	"gorm.io/gorm"
-)
-
 type Comic struct {
-	gorm.Model
+	ID          uint     `json:"id" gorm:"primary_key"`
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Price       float64  `json:"price"`
 	AuthorID    uint     `json:"author_id"`
-	Author      Author   `gorm:"foreignKey:AuthorID" json:"author"`
 	CategoryID  uint     `json:"category_id"`
-	Category    Category `gorm:"foreignKey:CategoryID" json:"category"`
+	Author      Author   `json:"author" gorm:"foreignkey:AuthorID"`
+	Category    Category `json:"category" gorm:"foreignkey:CategoryID"`
 }
-	
